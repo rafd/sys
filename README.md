@@ -1,5 +1,7 @@
 # sys
 
+[![Clojars Project](https://img.shields.io/clojars/v/com.github.rafd/sys.svg)](https://clojars.org/com.github.rafd/sys)
+
 A boring dependency injection system for Clojure(Script) apps.
 
 - Ordered startup and shutdown of components based on declared dependencies.
