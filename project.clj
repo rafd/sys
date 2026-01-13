@@ -1,4 +1,4 @@
-(defproject com.github.rafd/sys "0.1.0"
+(defproject com.github.rafd/sys "0.2.0"
   :description "A boring dependency injection system for Clojure(Script) apps."
   :url "https://github.com/rafd/sys"
   :license {:name "MIT"}
