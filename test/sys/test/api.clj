@@ -130,7 +130,8 @@
                                                                {:b 1})}})
                        sys/start!)]
         (is (= (-> system
-                   (sys/get ::sys/exception)
+                   deref
+                   ::sys/exception
                    ex-message)
                "Component with id :component-1 did not provide (:a) as declared."))
 

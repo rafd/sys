@@ -18,6 +18,7 @@
    [::init-components [:set ComponentDefinition]]
    [::active-components [:vector ComponentDefinition]]
    [::sorted-components [:vector ComponentDefinition]]
+   [::context :map]
    [::exception any?]])
 
 (defn all-provides-unique?
@@ -34,6 +35,7 @@
    ::sorted-components (topo/topo-sort (set components)
                                        {:->expects :sys.component/expects
                                         :->provides :sys.component/provides})
+   ::context {}
    ::exception nil})
 
 (defn init!
@@ -62,7 +64,7 @@
                      (do
                        (println "Starting" id)
                        (try
-                         (let [result (start (select-keys system expects))]
+                         (let [result (start (select-keys (::context system) expects))]
                            (when-let [missing-keys (and (seq provides)
                                                         (seq
                                                          (set/difference
@@ -78,7 +80,7 @@
                            (-> system
                                ;; if provides is empty or nil select-keys returns
                                ;; an empty map which is fine for our purpuses
-                               (merge (select-keys result provides))
+                               (update ::context merge (select-keys result provides))
                                (update ::active-components conj component)))
                          (catch #?(:clj Exception :cljs js/Error) e
                            (println "Error " id " (Error:" (.getMessage e) ")")
@@ -106,7 +108,7 @@
                      (do
                        (println "Stopping" id)
                        (try
-                         (stop (select-keys system provides))
+                         (stop (select-keys (::context system) provides))
                          (-> system
                              (update ::active-components pop))
                          (catch #?(:clj Exception :cljs js/Error) e
@@ -120,4 +122,4 @@
   system-atom)
 
 (defn get [system-atom k]
-  (clojure.core/get (deref system-atom) k))
+  (clojure.core/get (::context (deref system-atom)) k))
