@@ -114,8 +114,9 @@
                @start-args)))
 
       (testing "resulting system has all defined keys"
-        (is (= 1 (sys/get system :a)))
-        (is (= 2 (sys/get system :b))))
+        (is (= 1 (sys/get @system :a)))
+        (is (= 2 (sys/get @system :b)))
+        (is (= {:a 1 :b 2} (sys/context @system))))
 
       (testing "repeating start on started system does not call start functions again"
         (sys/start! system)
@@ -170,7 +171,8 @@
           (is (valid? sys/SystemObject @system)))
 
         (testing "resulting system has all defined keys"
-          (is (= 1 (sys/get system :a))))
+          (is (= 1 (sys/get @system :a)))
+          (is (= {:a 1} (sys/context @system))))
 
         (testing "calling start! with a broken system resumes starting from the broken component"
           (reset! component-state :fixed)

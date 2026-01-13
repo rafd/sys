@@ -28,7 +28,7 @@ A boring dependency injection system for Clojure(Script) apps.
    :sys.component/start    (fn [{:keys [db-url]}]
                               {:db-conn (db/conn db-url)})
    :sys.component/stop     (fn [{:keys [db-conn]}]
-                              (db/close db-conn))
+                              (db/close db-conn))})
 
 (def http-server-component
   #:sys.component
@@ -38,7 +38,7 @@ A boring dependency injection system for Clojure(Script) apps.
    :start    (fn [{:keys [http-port]}]
                {:server (http/start http-port)})
    :stop     (fn [{:keys [server]}]
-               (http/stop server))}))
+               (http/stop server))})
 
 (def prod-system
   (sys/init!
@@ -56,6 +56,13 @@ A boring dependency injection system for Clojure(Script) apps.
 
 (comment
  (sys/start! prod-system)
+ 
+ (sys/context @prod-system)
+ ;; {:db-conn ... :db-url ... :http-port ...}
+ 
+ (sys/get @prod-system :http-port)
+ ;; 8080
+ 
  (sys/stop! prod-system))
 ```
 

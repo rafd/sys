@@ -121,5 +121,10 @@
   (swap! system-atom stop)
   system-atom)
 
-(defn get [system-atom k]
-  (clojure.core/get (::context (deref system-atom)) k))
+(defn context
+  [system]
+  (::context system))
+
+(defn get [system k]
+  (clojure.core/get (context system) k))
+

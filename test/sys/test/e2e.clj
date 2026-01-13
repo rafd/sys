@@ -78,12 +78,15 @@
 #_(sys/start! prod-system)
 #_(sys/stop! prod-system)
 
-;; can get a value returned from a component
-#_(sys/get prod-system :db-conn)
+;; can get all values returned by components
+#_(sys/context @prod-system)
+
+;; can get a single value returned from the context
+#_(sys/get @prod-system :db-conn)
 
 ;; "unofficial" api to inspect the system
 #_(keys @prod-system)
-#_(map :sys.component/id (sys/get prod-system :sys.api/active-components))
+#_(map :sys.component/id (get @prod-system :sys.api/active-components))
 
 ;; pure api
 ;; (maintain the state in an atom yourself)
