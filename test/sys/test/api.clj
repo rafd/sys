@@ -91,11 +91,13 @@
                                                   {:b (+ a 1)})}
                        {:sys.component/id       :component-3
                         :sys.component/expects  #{:b}
-                        :sys.component/provides #{:c}
+                        :sys.component/provides #{}
                         :sys.component/start    (fn [{:keys [b] :as args}]
                                                   (swap! starts conj :component-3)
                                                   (swap! start-args assoc :component-3 args)
-                                                  {:c (+ b 1)})}}
+                                                  ;; component that provides nothing has the
+                                                  ;; output of its start function ignored
+                                                  [nil])}}
           system (-> (sys/init! components)
                      sys/start!)]
 
@@ -113,8 +115,7 @@
 
       (testing "resulting system has all defined keys"
         (is (= 1 (sys/get system :a)))
-        (is (= 2 (sys/get system :b)))
-        (is (= 3 (sys/get system :c))))
+        (is (= 2 (sys/get system :b))))
 
       (testing "repeating start on started system does not call start functions again"
         (sys/start! system)

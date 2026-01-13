@@ -63,10 +63,11 @@
                        (println "Starting" id)
                        (try
                          (let [result (start (select-keys system expects))]
-                           (when-let [missing-keys (seq
-                                                    (set/difference
-                                                     (set provides)
-                                                     (set (keys result))))]
+                           (when-let [missing-keys (and (seq provides)
+                                                        (seq
+                                                         (set/difference
+                                                          (set provides)
+                                                          (set (keys result)))))]
                              (throw (ex-info (str "Component with id "
                                                   id
                                                   " did not provide "
@@ -75,6 +76,8 @@
                                              {:id id
                                               :missing-keys missing-keys})))
                            (-> system
+                               ;; if provides is empty or nil select-keys returns
+                               ;; an empty map which is fine for our purpuses
                                (merge (select-keys result provides))
                                (update ::active-components conj component)))
                          (catch #?(:clj Exception :cljs js/Error) e
