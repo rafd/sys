@@ -5,6 +5,7 @@
 A boring dependency injection system for Clojure(Script) apps.
 
 - Ordered startup and shutdown of components based on declared dependencies.
+- Validates expects and provides for each component (optionally also checking types using malli schemas).
 - Resumes startup/shutdown from failure points.
 
 ```clojure
@@ -23,7 +24,8 @@ A boring dependency injection system for Clojure(Script) apps.
 
 (def db-component
   {:sys.component/id       :db
-   :sys.component/expects  #{:db-url}
+   ;; can use malli-lite schemas:
+   :sys.component/expects  {:db-url [:re "^jdbc://.*"]}
    :sys.component/provides #{:db-conn}
    :sys.component/start    (fn [{:keys [db-url]}]
                               {:db-conn (db/conn db-url)})
@@ -56,13 +58,13 @@ A boring dependency injection system for Clojure(Script) apps.
 
 (comment
  (sys/start! prod-system)
- 
+
  (sys/context @prod-system)
  ;; {:db-conn ... :db-url ... :http-port ...}
- 
+
  (sys/get @prod-system :http-port)
  ;; 8080
- 
+
  (sys/stop! prod-system))
 ```
 

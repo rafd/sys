@@ -3,13 +3,27 @@
   (:require
    [sys.topo :as topo]
    [malli.core :as m]
+   [malli.experimental.lite :as ml]
+   [malli.error :as me]
    [clojure.set :as set]))
+
+(def MalliSchema
+  ;; no schema for malli schemas yet
+  ;; https://github.com/metosin/malli/issues/872
+  :any)
+
+(def InputParamSpec
+  [:or
+   [:set :keyword]
+   [:map-of :keyword :any]])
 
 (def ComponentDefinition
   [:map
-   [:sys.component/id keyword?]
-   [:sys.component/expects {:optional true} [:set keyword?]]
-   [:sys.component/provides {:optional true} [:set keyword?]]
+   [:sys.component/id :keyword]
+   [:sys.component/expects {:optional true} InputParamSpec]
+   [:sys.component/provides {:optional true} InputParamSpec]
+   [:sys.component/expects-schema {:optional true} MalliSchema]
+   [:sys.component/provides-schema {:optional true} MalliSchema]
    [:sys.component/start {:optional true} fn?]
    [:sys.component/stop {:optional true} fn?]])
 
@@ -21,22 +35,51 @@
    [::context :map]
    [::exception any?]])
 
-(defn all-provides-unique?
+(defn ->schema
+  "Param specs may be sets or malli-lite notation. Normalize to malli schema."
+  [params-spec]
+  (cond
+    ;; if no params-spec defined, we accept anything
+    (nil? params-spec) (m/schema :any)
+    (set? params-spec) (ml/schema
+                        (zipmap params-spec
+                                (repeat :any)))
+    (map? params-spec) (ml/schema params-spec)
+    :else (m/schema params-spec)))
+
+(defn ->keys
+  [schema]
+  (set (map first (m/children schema))))
+
+(defn duplicate-key-provides
+  "Returns map of keys that are provided by more than one component, pointing to a set of the relevant components"
   [components]
-  (->> (mapcat :sys.component/provides components)
-       (apply distinct?)))
+  (->> (topo/flip components
+                  (fn [c] (->keys (:sys.component/provides-schema c))))
+       (filter (fn [[_ providing-components]]
+                 (> (count providing-components) 1)))
+       (into {})))
 
 (defn init
   [components]
-  {:pre [(m/validate [:seqable ComponentDefinition] components)
-         (all-provides-unique? components)]}
-  {::init-components (set components)
-   ::active-components []
-   ::sorted-components (topo/topo-sort (set components)
-                                       {:->expects :sys.component/expects
-                                        :->provides :sys.component/provides})
-   ::context {}
-   ::exception nil})
+  {:pre [(m/validate [:seqable ComponentDefinition] components)]}
+  (let [components (->> components
+                        (map (fn [component]
+                               (-> component
+                                   (assoc :sys.component/expects-schema (->schema (:sys.component/expects component)))
+                                   (assoc :sys.component/provides-schema (->schema (:sys.component/provides component)))))))]
+    (when-let [duplicates (seq (duplicate-key-provides components))]
+      (throw (ex-info (str "Multiple components provide the same key: "
+                           (update-vals duplicates (fn [components]
+                                                     (map :sys.component/id components))))
+                      {:duplicates duplicates})))
+    {::init-components (set components)
+     ::active-components []
+     ::sorted-components (topo/topo-sort (set components)
+                                         {:->expects (fn [c] (->keys (:sys.component/expects-schema c)))
+                                          :->provides (fn [c] (->keys (:sys.component/provides-schema c)))})
+     ::context {}
+     ::exception nil}))
 
 (defn init!
   [components]
@@ -48,7 +91,7 @@
   (let [system (assoc system ::exception nil)
         active? (set active-components)]
     (->> sorted-components
-         (reduce (fn [system {:sys.component/keys [id start expects provides]
+         (reduce (fn [system {:sys.component/keys [id start expects-schema provides-schema]
                               :as component}]
                    (cond
                      (active? component)
@@ -64,23 +107,18 @@
                      (do
                        (println "Starting" id)
                        (try
-                         (let [result (start (select-keys (::context system) expects))]
-                           (when-let [missing-keys (and (seq provides)
-                                                        (seq
-                                                         (set/difference
-                                                          (set provides)
-                                                          (set (keys result)))))]
+                         (let [result (start (select-keys (::context system) (->keys expects-schema)))]
+                           (when-let [errors (m/explain provides-schema result)]
                              (throw (ex-info (str "Component with id "
                                                   id
-                                                  " did not provide "
-                                                  missing-keys
-                                                  " as declared.")
+                                                  " did not provide values as declared: "
+                                                  (me/humanize errors))
                                              {:id id
-                                              :missing-keys missing-keys})))
+                                              :errors errors})))
                            (-> system
-                               ;; if provides is empty or nil select-keys returns
+                               ;; if provides-schema is empty map, select-keys returns
                                ;; an empty map which is fine for our purpuses
-                               (update ::context merge (select-keys result provides))
+                               (update ::context merge (select-keys result (->keys provides-schema)))
                                (update ::active-components conj component)))
                          (catch #?(:clj Exception :cljs js/Error) e
                            (println "Error " id " (Error:" (.getMessage e) ")")
@@ -97,7 +135,7 @@
   (let [system (assoc system ::exception nil)]
     (->> active-components
          reverse
-         (reduce (fn [system {:sys.component/keys [id stop provides]}]
+         (reduce (fn [system {:sys.component/keys [id stop provides-schema]}]
                    (cond
                      (nil? stop)
                      (do
@@ -108,7 +146,7 @@
                      (do
                        (println "Stopping" id)
                        (try
-                         (stop (select-keys (::context system) provides))
+                         (stop (select-keys (::context system) (->keys provides-schema)))
                          (-> system
                              (update ::active-components pop))
                          (catch #?(:clj Exception :cljs js/Error) e

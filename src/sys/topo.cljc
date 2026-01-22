@@ -2,6 +2,20 @@
   (:require
    [clojure.set :as set]))
 
+(defn flip [nodes ->x]
+  (->> (for [node nodes
+             p (->x node)]
+         {p #{node}})
+       (apply merge-with into)))
+
+#_(= (flip
+      [:foo :bar :baz]
+      {:foo #{:a :b}
+       :bar #{:a :c}})
+     {:a #{:foo :bar}
+      :b #{:foo}
+      :c #{:bar}})
+
 (defn all-expects-provided?
   [nodes {:keys [->expects ->provides]}]
   (set/subset?

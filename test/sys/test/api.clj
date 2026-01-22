@@ -29,13 +29,17 @@
                           :expects  #{}
                           :provides #{:a}
                           :start    (fn [_]
-                                      {:a 1})}}
+                                      {:a 1})}
+
+                         #:sys.component
+                         {:id       :component-2
+                          :expects  {:a :int}
+                          :provides {:b :int}
+                          :start    (fn [{:keys [a]}]
+                                      {:b (+ a 1)})}}
             system (sys/init! components)]
         (is (= clojure.lang.Atom (type system)))
-        (is (valid? sys/SystemObject @system))
-        (testing "(internal) init-components are set"
-          (is (= components
-                 (::sys/init-components @system))))))
+        (is (valid? sys/SystemObject @system))))
 
     (testing "throws exception when component definitions are invalid"
       (is (thrown-with-msg?
@@ -65,12 +69,12 @@
 
     (testing "throws exception when multiple components provide same key"
       (is (thrown-with-msg?
-           java.lang.AssertionError
-           #"all-provides-unique"
+           clojure.lang.ExceptionInfo
+           #"Multiple components provide the same key: \{:a .*\}"
            (sys/init! #{{:sys.component/id       :component-1
                          :sys.component/provides #{:a}}
                         {:sys.component/id       :component-2
-                         :sys.component/provides #{:a}}})))))
+                         :sys.component/provides {:a :int}}})))))
 
   (testing "start!"
     (let [starts (atom [])
@@ -88,10 +92,12 @@
                         :sys.component/start    (fn [{:keys [a] :as args}]
                                                   (swap! starts conj :component-2)
                                                   (swap! start-args assoc :component-2 args)
-                                                  {:b (+ a 1)})}
+                                                  {:b (+ a 1)
+                                                   ;; return an extra key that is not provided
+                                                   ;; (and thus not added to context)
+                                                   :x 1})}
                        {:sys.component/id       :component-3
                         :sys.component/expects  #{:b}
-                        :sys.component/provides #{}
                         :sys.component/start    (fn [{:keys [b] :as args}]
                                                   (swap! starts conj :component-3)
                                                   (swap! start-args assoc :component-3 args)
@@ -107,13 +113,13 @@
       (testing "returns a valid system"
         (is (valid? sys/SystemObject @system)))
 
-      (testing "each component receives the values it expects"
+      (testing "each component receives the values it expects (and only the ones it expects)"
         (is (= {:component-1 {}
                 :component-2 {:a 1}
                 :component-3 {:b 2}}
                @start-args)))
 
-      (testing "resulting system has all defined keys"
+      (testing "resulting system has all provided keys (and only provided keys)"
         (is (= 1 (sys/get @system :a)))
         (is (= 2 (sys/get @system :b)))
         (is (= {:a 1 :b 2} (sys/context @system))))
@@ -124,7 +130,7 @@
         (testing "returns a valid system"
           (is (valid? sys/SystemObject @system)))))
 
-    (testing "throws when a component does not provide what it declared"
+    (testing "returns system with exception when a component does not provide what it declared (set)"
       (let [system (-> (sys/init! #{{:sys.component/id       :component-1
                                      :sys.component/provides #{:a}
                                      :sys.component/start    (fn [_]
@@ -134,7 +140,22 @@
                    deref
                    ::sys/exception
                    ex-message)
-               "Component with id :component-1 did not provide (:a) as declared."))
+               "Component with id :component-1 did not provide values as declared: {:a [\"missing required key\"]}"))
+
+        (testing "returns a valid system"
+          (is (valid? sys/SystemObject @system)))))
+
+    (testing "returns system with exception when a component does not provide what it declared (malli spec)"
+      (let [system (-> (sys/init! #{{:sys.component/id       :component-1
+                                     :sys.component/provides {:a [:vector :int]}
+                                     :sys.component/start    (fn [_]
+                                                               {:a 1})}})
+                       sys/start!)]
+        (is (= (-> system
+                   deref
+                   ::sys/exception
+                   ex-message)
+               "Component with id :component-1 did not provide values as declared: {:a [\"invalid type\"]}"))
 
         (testing "returns a valid system"
           (is (valid? sys/SystemObject @system)))))
@@ -221,11 +242,11 @@
         (is (valid? sys/SystemObject @system)))
 
       (testing "each component receives what it provided"
-
         (is (= {:component-1 {:a 1}
                 :component-2 {:b 2}
                 :component-3 {:c 3}}
                @stop-args))))
+
     (testing "when given broken system only stops active components"
       (let [stops (atom [])
             components #{{:sys.component/id       :component-1
