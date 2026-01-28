@@ -60,45 +60,24 @@
 
 ;; stateful api
 
-(defonce prod-system
-  (sys/init!
-   #{database-component
-     migrations-component
-     config-component
-     http-server-component}))
+(sys/set! ::prod #{database-component
+                   migrations-component
+                   config-component
+                   http-server-component})
 
-(defonce dev-system
-  (sys/init!
-   #{migrations-component
-     seed-component
-     database-component
-     config-component
-     http-server-component}))
 
-#_(sys/start! prod-system)
-#_(sys/stop! prod-system)
+(sys/set! ::dev #{migrations-component
+                  seed-component
+                  database-component
+                  config-component
+                  http-server-component})
+
+#_(sys/start! ::prod)
+#_(sys/stop! ::prod)
 
 ;; can get all values returned by components
-#_(sys/context @prod-system)
+#_(sys/context ::prod)
 
 ;; can get a single value returned from the context
-#_(sys/get @prod-system :db-conn)
-
-;; "unofficial" api to inspect the system
-#_(keys @prod-system)
-#_(map :sys.component/id (get @prod-system :sys.api/active-components))
-
-;; pure api
-;; (maintain the state in an atom yourself)
-
-(def prod-components
-  #{database-component
-    config-component
-    http-server-component})
-
-(defonce my-prod-system (atom nil))
-
-#_(reset! my-prod-system (sys/init prod-components))
-#_(swap! my-prod-system sys/start)
-#_(swap! my-prod-system sys/stop)
+#_(sys/get ::prod :db-conn)
 

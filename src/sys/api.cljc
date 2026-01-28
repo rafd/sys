@@ -4,8 +4,7 @@
    [sys.topo :as topo]
    [malli.core :as m]
    [malli.experimental.lite :as ml]
-   [malli.error :as me]
-   [clojure.set :as set]))
+   [malli.error :as me]))
 
 (def MalliSchema
   ;; no schema for malli schemas yet
@@ -34,6 +33,9 @@
    [::sorted-components [:vector ComponentDefinition]]
    [::context :map]
    [::exception any?]])
+
+(def Systems
+  [:map-of :any SystemObject])
 
 (defn ->schema
   "Param specs may be sets or malli-lite notation. Normalize to malli schema."
@@ -81,10 +83,6 @@
      ::context {}
      ::exception nil}))
 
-(defn init!
-  [components]
-  (atom (init components)))
-
 (defn start
   [{::keys [active-components sorted-components] :as system}]
   (println "Starting system...")
@@ -126,10 +124,6 @@
                                            ::exception e)))))))
                  system))))
 
-(defn start! [system-atom]
-  (swap! system-atom start)
-  system-atom)
-
 (defn stop [{::keys [active-components] :as system}]
   (println "Stopping system...")
   (let [system (assoc system ::exception nil)]
@@ -155,14 +149,32 @@
                                            ::exception e)))))))
                  system))))
 
-(defn stop! [system-atom]
-  (swap! system-atom stop)
-  system-atom)
+(defonce systems (atom {}))
+
+(defn start! [system-id]
+  (swap! systems update system-id start)
+  nil)
+
+(defn stop! [system-id]
+  (swap! systems update system-id stop)
+  nil)
 
 (defn context
-  [system]
-  (::context system))
+  [system-id]
+  (get-in @systems [system-id ::context]))
 
-(defn get [system k]
-  (clojure.core/get (context system) k))
+(defn get [system-id k]
+  (clojure.core/get (context system-id) k))
+
+(defn set!
+  [system-id components]
+  (swap! systems update system-id (fn [system]
+                                    (let [started? (seq (::active-components system))]
+                                      (when started?
+                                        (stop system))
+                                      (let [new-system (init components)]
+                                        (when started?
+                                          (start new-system))
+                                        new-system))))
+  nil)
 
