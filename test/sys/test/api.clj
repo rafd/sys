@@ -279,7 +279,10 @@
         (is (= {:component-1 {:a 1}
                 :component-2 {:b 2}
                 :component-3 {:c 3}}
-               @stop-args))))
+               @stop-args)))
+
+      (testing "removes provided values from context"
+        (is (= {} (sys/context ::test)))))
 
     (testing "when given broken system only stops active components"
       (let [stops (atom [])]

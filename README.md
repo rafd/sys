@@ -82,7 +82,12 @@ A boring dependency injection system for Clojure(Script) apps.
  (sys/get ::prod :http-port)
  ;; 8080
 
- (sys/stop! ::prod))
+ (sys/stop! ::prod)
+
+ (sys/context ::prod)
+ ;; {}
+ ;; empty, since all components were stopped
+ )
 ```
 
 Want a prod and dev system? Create two lists of components. Or, one list that filters out some things from the other. No helpers for this at the moment, it's up to you.

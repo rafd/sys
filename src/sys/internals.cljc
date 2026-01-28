@@ -141,7 +141,8 @@
                        (try
                          (stop (select-keys (::context system) (->keys provides-schema)))
                          (-> system
-                             (update ::active-components pop))
+                             (update ::active-components pop)
+                             (update ::context (partial apply dissoc) (->keys provides-schema)))
                          (catch #?(:clj Exception :cljs js/Error) e
                            (println "Error " id "(" (.getMessage e) ")")
                            (reduced (assoc system
