@@ -3,7 +3,8 @@
    [clojure.test :refer [deftest testing is] :as t]
    [malli.core :as m]
    [malli.error :as me]
-   [sys.api :as sys]))
+   [sys.api :as sys]
+   [sys.internals :as i]))
 
 (defmethod t/assert-expr 'valid? [msg form]
   ;; form is (valid? schema value)
@@ -46,7 +47,7 @@
                           :provides {:b :int}
                           :start    (fn [{:keys [a]}]
                                       {:b (+ a 1)})}})
-      (is (valid? sys/Systems @sys/systems)))
+      (is (valid? i/Systems @sys/systems)))
 
     (testing "throws exception when component definitions are invalid"
       (is (thrown-with-msg?
@@ -118,7 +119,7 @@
         (is (= [:component-1 :component-2 :component-3] @starts)))
 
       (testing "(internal) systems remains valid"
-        (is (valid? sys/Systems @sys/systems)))
+        (is (valid? i/Systems @sys/systems)))
 
       (testing "each component receives the values it expects (and only the ones it expects)"
         (is (= {:component-1 {}
@@ -136,7 +137,7 @@
         (is (= [:component-1 :component-2 :component-3] @starts))
 
         (testing "(internal) systems remains valid"
-          (is (valid? sys/Systems @sys/systems)))))
+          (is (valid? i/Systems @sys/systems)))))
 
     (testing "when a component does not provide what it declared (set), results in system with exception"
       (clear!)
@@ -149,12 +150,12 @@
       (is (= (-> sys/systems
                  deref
                  ::test
-                 ::sys/exception
+                 ::i/exception
                  ex-message)
              "Component with id :component-1 did not provide values as declared: {:a [\"missing required key\"]}"))
 
       (testing "(internal) systems remains valid"
-        (is (valid? sys/Systems @sys/systems))))
+        (is (valid? i/Systems @sys/systems))))
 
     (testing "when a component does not provide what it declared (malli spec), results in system with exception"
       (clear!)
@@ -167,12 +168,12 @@
       (is (= (-> sys/systems
                  deref
                  ::test
-                 ::sys/exception
+                 ::i/exception
                  ex-message)
              "Component with id :component-1 did not provide values as declared: {:a [\"invalid type\"]}"))
 
       (testing "(internal) systems remains valid"
-        (is (valid? sys/Systems @sys/systems))))
+        (is (valid? i/Systems @sys/systems))))
 
     (testing "when a component fails to start, does not start remaining components"
       (let [starts (atom [])
@@ -217,7 +218,7 @@
         (is (= [:component-1 :component-2] @starts))
 
         (testing "(internal) systems remains valid"
-          (is (valid? sys/Systems @sys/systems)))
+          (is (valid? i/Systems @sys/systems)))
 
         (testing "resulting system has all defined keys"
           (is (= 1 (sys/get ::test :a)))
@@ -234,7 +235,7 @@
                     :component-1 :component-2 :component-3] @starts)))
 
           (testing "(internal) systems remains valid"
-            (is (valid? sys/Systems @sys/systems)))))))
+            (is (valid? i/Systems @sys/systems)))))))
 
   (testing "stop!"
     (let [stops (atom [])
@@ -272,7 +273,7 @@
                @stops)))
 
       (testing "(internal) systems remains valid"
-        (is (valid? sys/Systems @sys/systems)))
+        (is (valid? i/Systems @sys/systems)))
 
       (testing "each component receives what it provided"
         (is (= {:component-1 {:a 1}
@@ -313,7 +314,7 @@
                  @stops)))
 
         (testing "(internal) systems remains valid"
-          (is (valid? sys/Systems @sys/systems)))))))
+          (is (valid? i/Systems @sys/systems)))))))
 
 (clojure.test/run-tests)
 
