@@ -12,6 +12,11 @@ We use [Break Versioning][breakver]. The version numbers follow a `<major>.<mino
 
 [breakver]: https://github.com/ptaoussanis/encore/blob/master/BREAK-VERSIONING.md
 
+## 0.3.1 (2026-02-05)
+
+- **FIX** Fix incorrect context when calling set! on an already started system.
+- **FIX** Fix components not being marked as stopped if they didn't have a stop function, causing potential restart issues.
+
 ## 0.3.0 (2026-01-28)
 
 - **BREAKING** Remove `sys/init!`, add `sys/set!` which serves a similar purpose, but supports REPL workflows better.
