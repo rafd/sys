@@ -257,10 +257,7 @@
                           :sys.component/expects  #{:a}
                           :sys.component/provides #{:b}
                           :sys.component/start    (fn [{:keys [a]}]
-                                                    {:b (+ a 1)})
-                          :sys.component/stop    (fn [args]
-                                                   (swap! stops conj :component-2)
-                                                   (swap! stop-args assoc :component-2 args))}
+                                                    {:b (+ a 1)})}
                          {:sys.component/id       :component-3
                           :sys.component/expects  #{:b}
                           :sys.component/provides #{:c}
@@ -273,7 +270,7 @@
       (sys/stop! ::test)
 
       (testing "stops components in reverse order"
-        (is (= [:component-3 :component-2 :component-1]
+        (is (= [:component-3 :component-1] ;; component-2 doesn't have a stop fn
                @stops)))
 
       (testing "(internal) systems remains valid"
@@ -281,7 +278,6 @@
 
       (testing "each component receives what it provided"
         (is (= {:component-1 {:a 1}
-                :component-2 {:b 2}
                 :component-3 {:c 3}}
                @stop-args)))
 

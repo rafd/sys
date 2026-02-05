@@ -129,23 +129,18 @@
     (->> active-components
          reverse
          (reduce (fn [system {:sys.component/keys [id stop provides-schema]}]
-                   (cond
-                     (nil? stop)
-                     (do
+                   (try
+                     (if (nil? stop)
                        (println "Skipping" id "(no stop function)")
-                       system)
-
-                     :else
-                     (do
-                       (println "Stopping" id)
-                       (try
-                         (stop (select-keys (::context system) (->keys provides-schema)))
-                         (-> system
-                             (update ::active-components pop)
-                             (update ::context (partial apply dissoc) (->keys provides-schema)))
-                         (catch #?(:clj Exception :cljs js/Error) e
-                           (println "Error " id "(" (.getMessage e) ")")
-                           (reduced (assoc system
-                                           ::exception e)))))))
+                       (do
+                         (println "Stopping" id)
+                         (stop (select-keys (::context system) (->keys provides-schema)))))
+                     (-> system
+                         (update ::active-components pop)
+                         (update ::context (partial apply dissoc) (->keys provides-schema)))
+                     (catch #?(:clj Exception :cljs js/Error) e
+                       (println "Error " id "(" (.getMessage e) ")")
+                       (reduced (assoc system
+                                       ::exception e)))))
                  system))))
 
