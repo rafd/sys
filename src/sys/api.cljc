@@ -27,8 +27,8 @@
                                       (when started?
                                         (i/stop system))
                                       (let [new-system (i/init components)]
-                                        (when started?
-                                          (i/start new-system))
-                                        new-system))))
+                                        (if started?
+                                          (i/start new-system)
+                                          new-system)))))
   nil)
 

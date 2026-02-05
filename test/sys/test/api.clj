@@ -234,6 +234,10 @@
             (is (= [:component-1 :component-2 ;; before fixing
                     :component-1 :component-2 :component-3] @starts)))
 
+          (testing "resulting system has all defined keys"
+            (is (= 1 (sys/get ::test :a)))
+            (is (= {:a 1 :b 2 :c 3} (sys/context ::test))))
+
           (testing "(internal) systems remains valid"
             (is (valid? i/Systems @sys/systems)))))))
 
