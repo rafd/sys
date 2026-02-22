@@ -12,6 +12,12 @@ We use [Break Versioning][breakver]. The version numbers follow a `<major>.<mino
 
 [breakver]: https://github.com/ptaoussanis/encore/blob/master/BREAK-VERSIONING.md
 
+## 0.3.2 (2026-02-22)
+
+- **FIX** Fix infinite loops when a system has a nested sub-system.
+- Improve error message when a system expects more than its components provide.
+- System id is now logged at system start.
+
 ## 0.3.1 (2026-02-05)
 
 - **FIX** Fix incorrect context when calling set! on an already started system.
