@@ -284,6 +284,16 @@
       (testing "removes provided values from context"
         (is (= {} (sys/context ::test)))))
 
+    (testing "removes provided keys from context even when component has no stop fn"
+      (clear!)
+      (sys/set! ::test #{{:sys.component/id      :component-1
+                          :sys.component/provides #{:a}
+                          :sys.component/start    (fn [_] {:a 1})}})
+      (sys/start! ::test)
+      (is (= {:a 1} (sys/context ::test)))
+      (sys/stop! ::test)
+      (is (= {} (sys/context ::test))))
+
     (testing "when given broken system only stops active components"
       (let [stops (atom [])]
         (clear!)
