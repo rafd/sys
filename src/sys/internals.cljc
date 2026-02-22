@@ -27,6 +27,7 @@
 
 (def SystemObject
   [:map
+   [::id :keyword]
    [::init-components [:set ComponentDefinition]]
    [::active-components [:vector ComponentDefinition]]
    [::sorted-components [:vector ComponentDefinition]]
@@ -62,7 +63,7 @@
        (into {})))
 
 (defn init
-  [components]
+  [system-id components]
   {:pre [(m/validate [:seqable ComponentDefinition] components)]}
   (let [components (->> components
                         (map (fn [component]
@@ -74,7 +75,8 @@
                            (update-vals duplicates (fn [components]
                                                      (map :sys.component/id components))))
                       {:duplicates duplicates})))
-    {::init-components (set components)
+    {::id system-id
+     ::init-components (set components)
      ::active-components []
      ::sorted-components (topo/topo-sort (set components)
                                          {:->expects (fn [c] (->keys (:sys.component/expects-schema c)))
@@ -83,8 +85,8 @@
      ::exception nil}))
 
 (defn start
-  [{::keys [active-components sorted-components] :as system}]
-  (println "Starting system...")
+  [{::keys [id active-components sorted-components] :as system}]
+  (println "Starting system" id "...")
   (let [system (assoc system ::exception nil)
         active? (set active-components)]
     (->> sorted-components

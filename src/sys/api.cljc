@@ -26,7 +26,7 @@
                                     (let [started? (seq (::i/active-components system))]
                                       (when started?
                                         (i/stop system))
-                                      (let [new-system (i/init components)]
+                                      (let [new-system (i/init system-id components)]
                                         (if started?
                                           (i/start new-system)
                                           new-system)))))
