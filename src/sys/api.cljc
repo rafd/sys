@@ -5,12 +5,17 @@
 
 (defonce systems (atom {}))
 
+;; in start!, stop!, set! we apply the stateful function and assoc (instead of using it as an update)
+;; because nested systems might mutate the system object
+
 (defn start! [system-id]
-  (swap! systems update system-id i/start)
+  (let [result (i/start (clojure.core/get @systems system-id))]
+    (swap! systems assoc system-id result))
   nil)
 
 (defn stop! [system-id]
-  (swap! systems update system-id i/stop)
+  (let [result (i/stop (clojure.core/get @systems system-id))]
+    (swap! systems assoc system-id result))
   nil)
 
 (defn context
@@ -22,13 +27,14 @@
 
 (defn set!
   [system-id components]
-  (swap! systems update system-id (fn [system]
-                                    (let [started? (seq (::i/active-components system))]
-                                      (when started?
-                                        (i/stop system))
-                                      (let [new-system (i/init system-id components)]
-                                        (if started?
-                                          (i/start new-system)
-                                          new-system)))))
+  (let [system   (clojure.core/get @systems system-id)
+        started? (seq (::i/active-components system))
+        _        (when started?
+                   (i/stop system))
+        new-system (i/init system-id components)
+        result   (if started?
+                   (i/start new-system)
+                   new-system)]
+    (swap! systems assoc system-id result))
   nil)
 

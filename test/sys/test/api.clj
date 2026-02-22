@@ -32,21 +32,21 @@
 (deftest e2e
   (testing "set!"
     (testing
-      "(internal) results in valid systems"
+     "(internal) results in valid systems"
       (clear!)
       (sys/set! ::test #{#:sys.component
-                         {:id       :component-1
-                          :expects  #{}
-                          :provides #{:a}
-                          :start    (fn [_]
-                                      {:a 1})}
+                          {:id       :component-1
+                           :expects  #{}
+                           :provides #{:a}
+                           :start    (fn [_]
+                                       {:a 1})}
 
                          #:sys.component
-                         {:id       :component-2
-                          :expects  {:a :int}
-                          :provides {:b :int}
-                          :start    (fn [{:keys [a]}]
-                                      {:b (+ a 1)})}})
+                          {:id       :component-2
+                           :expects  {:a :int}
+                           :provides {:b :int}
+                           :start    (fn [{:keys [a]}]
+                                       {:b (+ a 1)})}})
       (is (valid? i/Systems @sys/systems)))
 
     (testing "throws exception when component definitions are invalid"
@@ -327,7 +327,87 @@
                  @stops)))
 
         (testing "(internal) systems remains valid"
-          (is (valid? i/Systems @sys/systems)))))))
+          (is (valid? i/Systems @sys/systems))))))
+
+  (testing "nested systems"
+    (clear!)
+    (sys/set! ::child #{#:sys.component
+                         {:id       :child-1
+                          :expects  #{}
+                          :provides #{:a}
+                          :start    (fn [_]
+                                      {:a 1})}
+                        #:sys.component
+                         {:id       :child-2
+                          :expects  {:a :int}
+                          :provides {:b :int}
+                          :start    (fn [{:keys [a]}]
+                                      {:b (+ a 1)})}})
+    (sys/set! ::parent #{#:sys.component
+                          {:id       :parent-1
+                           :expects  #{}
+                           :provides #{:a}
+                           :start    (fn [_]
+                                       (sys/start! ::child)
+                                       {:a 1})
+                           :stop     (fn [_]
+                                       (sys/stop! ::child))}
+
+                         #:sys.component
+                          {:id       :parent-2
+                           :expects  {:a :int}
+                           :provides {:b :int}
+                           :start    (fn [{:keys [a]}]
+                                       {:b (+ a 1)})}})
+
+    (sys/start! ::parent)
+
+    (testing "starting parent also starts child"
+      (is (= {:a 1 :b 2} (sys/context ::child))))
+
+    (testing "parent context is correct"
+      (is (= {:a 1 :b 2} (sys/context ::parent))))
+
+    (testing "(internal) systems remains valid after start"
+      (is (valid? i/Systems @sys/systems)))
+
+    (testing "set! on running parent stops child and restarts it"
+      (sys/set! ::parent #{#:sys.component
+                            {:id       :parent-1
+                             :expects  #{}
+                             :provides #{:a}
+                             :start    (fn [_]
+                                         (sys/start! ::child)
+                                         {:a 10})
+                             :stop     (fn [_]
+                                         (sys/stop! ::child))}
+
+                           #:sys.component
+                            {:id       :parent-2
+                             :expects  {:a :int}
+                             :provides {:b :int}
+                             :start    (fn [{:keys [a]}]
+                                         {:b (+ a 1)})}})
+
+      (testing "child is restarted"
+        (is (= {:a 1 :b 2} (sys/context ::child))))
+
+      (testing "parent context reflects new components"
+        (is (= {:a 10 :b 11} (sys/context ::parent))))
+
+      (testing "(internal) systems remains valid after set!"
+        (is (valid? i/Systems @sys/systems))))
+
+    (sys/stop! ::parent)
+
+    (testing "stopping parent also stops child"
+      (is (= {} (sys/context ::child))))
+
+    (testing "parent context is cleared after stop"
+      (is (= {} (sys/context ::parent))))
+
+    (testing "(internal) systems remains valid after stop"
+      (is (valid? i/Systems @sys/systems)))))
 
 (clojure.test/run-tests)
 
