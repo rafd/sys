@@ -1,5 +1,6 @@
 (ns sys.internals
   (:require
+   [clojure.set :as set]
    [sys.topo :as topo]
    [malli.core :as m]
    [malli.experimental.lite :as ml]
@@ -75,6 +76,12 @@
                            (update-vals duplicates (fn [components]
                                                      (map :sys.component/id components))))
                       {:duplicates duplicates})))
+    (let [all-expected (set (mapcat (fn [c] (->keys (:sys.component/expects-schema c))) components))
+          all-provided (set (mapcat (fn [c] (->keys (:sys.component/provides-schema c))) components))
+          missing      (set/difference all-expected all-provided)]
+      (when (seq missing)
+        (throw (ex-info (str "Expected keys are not provided: " missing)
+                        {:missing missing}))))
     {::id system-id
      ::init-components (set components)
      ::active-components []

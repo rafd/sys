@@ -57,8 +57,8 @@
 
     (testing "throws exception when dependencies are not met"
       (is (thrown-with-msg?
-           java.lang.AssertionError
-           #"all-expects-provided"
+           clojure.lang.ExceptionInfo
+           #"not provided: #\{:b\}"
            (sys/set! ::test #{{:sys.component/id       :component-1
                                :sys.component/provides #{:a}}
                               {:sys.component/id       :component-2
