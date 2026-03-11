@@ -25,8 +25,8 @@
 (defn clear!
   []
   (println "CLEAR!")
-  (doseq [system (keys @sys/*systems)]
-    (sys/stop! system))
+  (doseq [system-id (keys @sys/*systems)]
+    (sys/stop! system-id))
   (reset! sys/*systems {}))
 
 (deftest e2e
@@ -47,7 +47,7 @@
                            :provides {:b :int}
                            :start    (fn [{:keys [a]}]
                                        {:b (+ a 1)})}})
-      (is (valid? i/Systems @sys/*systems)))
+      (is (valid? i/SystemObject @(get @sys/*systems ::test))))
 
     (testing "throws exception when component definitions are invalid"
       (is (thrown-with-msg?
@@ -123,7 +123,7 @@
         (is (= [:component-1 :component-2 :component-3] @starts)))
 
       (testing "(internal) systems remains valid"
-        (is (valid? i/Systems @sys/*systems)))
+        (is (valid? i/SystemObject @(get @sys/*systems ::test))))
 
       (testing "each component receives the values it expects (and only the ones it expects)"
         (is (= {:component-1 {}
@@ -147,7 +147,7 @@
         (is (= [:component-1 :component-2 :component-3] @starts))
 
         (testing "(internal) systems remains valid"
-          (is (valid? i/Systems @sys/*systems)))))
+          (is (valid? i/SystemObject @(get @sys/*systems ::test))))))
 
     (testing "when a component does not provide what it declared (set), results in system with exception"
       (clear!)
@@ -160,12 +160,13 @@
       (is (= (-> sys/*systems
                  deref
                  ::test
+                 deref
                  ::i/exception
                  ex-message)
              "Component with id :component-1 did not provide values as declared: {:a [\"missing required key\"]}"))
 
       (testing "(internal) systems remains valid"
-        (is (valid? i/Systems @sys/*systems))))
+        (is (valid? i/SystemObject @(get @sys/*systems ::test)))))
 
     (testing "when a component does not provide what it declared (malli spec), results in system with exception"
       (clear!)
@@ -178,12 +179,13 @@
       (is (= (-> sys/*systems
                  deref
                  ::test
+                 deref
                  ::i/exception
                  ex-message)
              "Component with id :component-1 did not provide values as declared: {:a [\"invalid type\"]}"))
 
       (testing "(internal) systems remains valid"
-        (is (valid? i/Systems @sys/*systems))))
+        (is (valid? i/SystemObject @(get @sys/*systems ::test)))))
 
     (testing "when a component fails to start, does not start remaining components"
       (let [starts (atom [])
@@ -228,7 +230,7 @@
         (is (= [:component-1 :component-2] @starts))
 
         (testing "(internal) systems remains valid"
-          (is (valid? i/Systems @sys/*systems)))
+          (is (valid? i/SystemObject @(get @sys/*systems ::test))))
 
         (testing "resulting system has all defined keys"
           (is (= 1 (sys/get ::test :a)))
@@ -249,7 +251,7 @@
             (is (= {:a 1 :b 2 :c 3} (sys/context ::test))))
 
           (testing "(internal) systems remains valid"
-            (is (valid? i/Systems @sys/*systems)))))))
+            (is (valid? i/SystemObject @(get @sys/*systems ::test))))))))
 
   (testing "stop!"
     (let [stops (atom [])
@@ -289,7 +291,7 @@
                @stops)))
 
       (testing "(internal) systems remains valid"
-        (is (valid? i/Systems @sys/*systems)))
+        (is (valid? i/SystemObject @(get @sys/*systems ::test))))
 
       (testing "each component receives what it provided"
         (is (= {:component-1 {:a 1}
@@ -347,7 +349,7 @@
                  @stops)))
 
         (testing "(internal) systems remains valid"
-          (is (valid? i/Systems @sys/*systems))))))
+          (is (valid? i/SystemObject @(get @sys/*systems ::test)))))))
 
   (testing "nested systems"
     (clear!)
@@ -389,7 +391,7 @@
       (is (= {:a 1 :b 2} (sys/context ::parent))))
 
     (testing "(internal) systems remains valid after start"
-      (is (valid? i/Systems @sys/*systems)))
+      (is (valid? i/SystemObject @(get @sys/*systems ::parent))))
 
     (testing "set! on running parent stops child and restarts it"
       (sys/set! ::parent #{#:sys.component
@@ -416,7 +418,7 @@
         (is (= {:a 10 :b 11} (sys/context ::parent))))
 
       (testing "(internal) systems remains valid after set!"
-        (is (valid? i/Systems @sys/*systems))))
+        (is (valid? i/SystemObject @(get @sys/*systems ::parent)))))
 
     (sys/stop! ::parent)
 
@@ -427,7 +429,7 @@
       (is (= {} (sys/context ::parent))))
 
     (testing "(internal) systems remains valid after stop"
-      (is (valid? i/Systems @sys/*systems)))))
+      (is (valid? i/SystemObject @(get @sys/*systems ::parent))))))
 
 (clojure.test/run-tests)
 

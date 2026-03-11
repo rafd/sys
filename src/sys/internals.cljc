@@ -93,17 +93,17 @@
      ::exception nil}))
 
 (defn start!
-  [*systems system-id]
-  (let [{::keys [id active-components sorted-components]} (get @*systems system-id)]
+  [*system]
+  (let [{::keys [id active-components sorted-components]} @*system]
     (trove/log! {:level :info
                  :id ::starting-system
                  :data {:system-id id}
                  :msg (str "Starting system " id " ...")})
-    (swap! *systems assoc-in [system-id ::exception] nil)
+    (swap! *system assoc ::exception nil)
     (let [active? (set active-components)]
       (doseq [{:sys.component/keys [id start expects-schema provides-schema]
                :as component} sorted-components
-              :while (nil? (::exception (get @*systems system-id)))]
+              :while (nil? (::exception @*system))]
         (cond
           (active? component)
           (trove/log! {:level :info
@@ -126,7 +126,7 @@
                          :data {:component-id id}
                          :msg (str "Starting " id)})
             (try
-              (let [result (start (select-keys (::context (get @*systems system-id)) (->keys expects-schema)))]
+              (let [result (start (select-keys (::context @*system) (->keys expects-schema)))]
                 (when-let [errors (m/explain provides-schema result)]
                   (throw (ex-info (str "Component with id "
                                        id
@@ -134,7 +134,7 @@
                                        (me/humanize errors))
                                   {:id id
                                    :errors errors})))
-                (swap! *systems update system-id
+                (swap! *system
                        (fn [system]
                          (-> system
                              ;; if provides-schema is empty map, select-keys returns
@@ -147,17 +147,17 @@
                              :data {:component-id id}
                              :error e
                              :msg (str "Error " id " (" (.getMessage e) ")")})
-                (swap! *systems assoc-in [system-id ::exception] e)))))))))
+                (swap! *system assoc ::exception e)))))))))
 
 (defn stop!
-  [*systems system-id]
+  [*system]
   (trove/log! {:level :info
                :id ::stopping-system
                :msg "Stopping system..."})
-  (swap! *systems assoc-in [system-id ::exception] nil)
-  (let [active-components (::active-components (get @*systems system-id))]
+  (swap! *system assoc ::exception nil)
+  (let [active-components (::active-components @*system)]
     (doseq [{:sys.component/keys [id stop provides-schema]} (reverse active-components)
-            :while (nil? (::exception (get @*systems system-id)))]
+            :while (nil? (::exception @*system))]
       (try
         (if (nil? stop)
           (trove/log! {:level :info
@@ -170,8 +170,8 @@
                          :id ::stopping-component
                          :data {:component-id id}
                          :msg (str "Stopping " id)})
-            (stop (select-keys (::context (get @*systems system-id)) (->keys provides-schema)))))
-        (swap! *systems update system-id
+            (stop (select-keys (::context @*system) (->keys provides-schema)))))
+        (swap! *system
                (fn [system]
                  (-> system
                      (update ::active-components pop)
@@ -182,5 +182,5 @@
                        :data {:component-id id}
                        :error e
                        :msg (str "Error " id " (" (.getMessage e) ")")})
-          (swap! *systems assoc-in [system-id ::exception] e))))))
+          (swap! *system assoc ::exception e))))))
 
