@@ -96,3 +96,8 @@ See [test/sys/test/e2e.clj](test/sys/test/e2e.clj) for a more complete example.
 
 See [test/sys/test/api.clj](test/sys/test/api.clj) for a test namespaces that walks through all the features.
 
+## Logging
+
+Sys uses [trove](https://github.com/taoensso/trove) for logging, so [you can redirect sys' messages to your app's logging system](
+https://github.com/taoensso/trove/blob/master/README.md#to-choose-a-backend).
+

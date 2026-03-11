@@ -1,10 +1,11 @@
 (ns sys.internals
   (:require
    [clojure.set :as set]
-   [sys.topo :as topo]
    [malli.core :as m]
+   [malli.error :as me]
    [malli.experimental.lite :as ml]
-   [malli.error :as me]))
+   [taoensso.trove :as trove]
+   [sys.topo :as topo]))
 
 (def MalliSchema
   ;; no schema for malli schemas yet
@@ -93,7 +94,10 @@
 
 (defn start
   [{::keys [id active-components sorted-components] :as system}]
-  (println "Starting system" id "...")
+  (trove/log! {:level :info
+               :id ::starting-system
+               :data {:system-id id}
+               :msg (str "Starting system " id " ...")})
   (let [system (assoc system ::exception nil)
         active? (set active-components)]
     (->> sorted-components
@@ -101,17 +105,28 @@
                               :as component}]
                    (cond
                      (active? component)
-                     (do (println "Skipping" id " (already active)")
+                     (do (trove/log! {:level :info
+                                      :id ::skipping-component
+                                      :data {:component-id id
+                                             :reason :already-active}
+                                      :msg (str "Skipping " id " (already active)")})
                          system)
 
                      (nil? start)
                      (do
-                       (println "Skipping" id " (no start function)")
+                       (trove/log! {:level :info
+                                    :id ::skipping-component
+                                    :data {:component-id id
+                                           :reason :no-start-fn}
+                                    :msg (str "Skipping " id " (no start function)")})
                        system)
 
                      :else
                      (do
-                       (println "Starting" id)
+                       (trove/log! {:level :info
+                                    :id ::starting-component
+                                    :data {:component-id id}
+                                    :msg (str "Starting " id)})
                        (try
                          (let [result (start (select-keys (::context system) (->keys expects-schema)))]
                            (when-let [errors (m/explain provides-schema result)]
@@ -127,28 +142,45 @@
                                (update ::context merge (select-keys result (->keys provides-schema)))
                                (update ::active-components conj component)))
                          (catch #?(:clj Exception :cljs js/Error) e
-                           (println "Error " id " (Error:" (.getMessage e) ")")
+                           (trove/log! {:level :error
+                                        :id ::component-error
+                                        :data {:component-id id}
+                                        :error e
+                                        :msg (str "Error " id " (" (.getMessage e) ")")})
                            (reduced (assoc system
                                            ::exception e)))))))
                  system))))
 
 (defn stop [{::keys [active-components] :as system}]
-  (println "Stopping system...")
+  (trove/log! {:level :info
+               :id ::stopping-system
+               :msg "Stopping system..."})
   (let [system (assoc system ::exception nil)]
     (->> active-components
          reverse
          (reduce (fn [system {:sys.component/keys [id stop provides-schema]}]
                    (try
                      (if (nil? stop)
-                       (println "Skipping" id "(no stop function)")
+                       (trove/log! {:level :info
+                                    :id ::skipping-component
+                                    :data {:component-id id
+                                           :reason :no-stop-fn}
+                                    :msg (str "Skipping " id " (no stop function)")})
                        (do
-                         (println "Stopping" id)
+                         (trove/log! {:level :info
+                                      :id ::stopping-component
+                                      :data {:component-id id}
+                                      :msg (str "Stopping " id)})
                          (stop (select-keys (::context system) (->keys provides-schema)))))
                      (-> system
                          (update ::active-components pop)
                          (update ::context (partial apply dissoc) (->keys provides-schema)))
                      (catch #?(:clj Exception :cljs js/Error) e
-                       (println "Error " id "(" (.getMessage e) ")")
+                       (trove/log! {:level :error
+                                    :id ::component-error
+                                    :data {:component-id id}
+                                    :error e
+                                    :msg (str "Error " id " (" (.getMessage e) ")")})
                        (reduced (assoc system
                                        ::exception e)))))
                  system))))

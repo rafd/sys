@@ -4,7 +4,8 @@
   :license {:name "MIT"}
 
   :dependencies [[org.clojure/clojure "1.12.0"]
-                 [metosin/malli "0.20.0"]]
+                 [metosin/malli "0.20.0"]
+                 [com.taoensso/trove "1.1.0"]]
 
   :profiles {:test-e2e
              {:dependencies [[http-kit "2.8.1"]
