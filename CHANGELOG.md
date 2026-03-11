@@ -12,6 +12,12 @@ We use [Break Versioning][breakver]. The version numbers follow a `<major>.<mino
 
 [breakver]: https://github.com/ptaoussanis/encore/blob/master/BREAK-VERSIONING.md
 
+## 0.3.3 (2026-03-11)
+
+- **FIX** System context now updates after the start/stop of each component, enabling use of sys.api/context and sys.api/get during a component's start/stop functions.
+- Now using [trove](https://github.com/taoensso/trove) for logging, so library consumers can redirect sys logs to their preferred logging system.
+- Internal refactoring: `*systems` is now an atom of atoms (each system is its own atom).
+
 ## 0.3.2 (2026-02-22)
 
 - **FIX** Fix infinite loops when a system has a nested sub-system.
