@@ -25,9 +25,9 @@
 (defn clear!
   []
   (println "CLEAR!")
-  (doseq [system (keys @sys/systems)]
+  (doseq [system (keys @sys/*systems)]
     (sys/stop! system))
-  (reset! sys/systems {}))
+  (reset! sys/*systems {}))
 
 (deftest e2e
   (testing "set!"
@@ -47,7 +47,7 @@
                            :provides {:b :int}
                            :start    (fn [{:keys [a]}]
                                        {:b (+ a 1)})}})
-      (is (valid? i/Systems @sys/systems)))
+      (is (valid? i/Systems @sys/*systems)))
 
     (testing "throws exception when component definitions are invalid"
       (is (thrown-with-msg?
@@ -86,7 +86,8 @@
 
   (testing "start!"
     (let [starts (atom [])
-          start-args (atom {})]
+          start-args (atom {})
+          get-contexts (atom {})]
       (clear!)
       (sys/set! ::test #{{:sys.component/id       :component-1
                           :sys.component/expects  #{}
@@ -94,6 +95,7 @@
                           :sys.component/start    (fn [args]
                                                     (swap! starts conj :component-1)
                                                     (swap! start-args assoc :component-1 args)
+                                                    (swap! get-contexts assoc :component-1 (sys/context ::test))
                                                     {:a 1})}
                          {:sys.component/id       :component-2
                           :sys.component/expects  #{:a}
@@ -101,6 +103,7 @@
                           :sys.component/start    (fn [{:keys [a] :as args}]
                                                     (swap! starts conj :component-2)
                                                     (swap! start-args assoc :component-2 args)
+                                                    (swap! get-contexts assoc :component-2 (sys/context ::test))
                                                     {:b (+ a 1)
                                                      ;; return an extra key that is not provided
                                                      ;; (and thus not added to context)
@@ -110,6 +113,7 @@
                           :sys.component/start    (fn [{:keys [_b] :as args}]
                                                     (swap! starts conj :component-3)
                                                     (swap! start-args assoc :component-3 args)
+                                                    (swap! get-contexts assoc :component-3 (sys/context ::test))
                                                     ;; component that provides nothing has the
                                                     ;; output of its start function ignored
                                                     [nil])}})
@@ -119,13 +123,19 @@
         (is (= [:component-1 :component-2 :component-3] @starts)))
 
       (testing "(internal) systems remains valid"
-        (is (valid? i/Systems @sys/systems)))
+        (is (valid? i/Systems @sys/*systems)))
 
       (testing "each component receives the values it expects (and only the ones it expects)"
         (is (= {:component-1 {}
                 :component-2 {:a 1}
                 :component-3 {:b 2}}
                @start-args)))
+
+      (testing "context is updated after each start"
+        (is (= {:component-1 {}
+                :component-2 {:a 1}
+                :component-3 {:a 1 :b 2}}
+               @get-contexts)))
 
       (testing "resulting system has all provided keys (and only provided keys)"
         (is (= 1 (sys/get ::test :a)))
@@ -137,7 +147,7 @@
         (is (= [:component-1 :component-2 :component-3] @starts))
 
         (testing "(internal) systems remains valid"
-          (is (valid? i/Systems @sys/systems)))))
+          (is (valid? i/Systems @sys/*systems)))))
 
     (testing "when a component does not provide what it declared (set), results in system with exception"
       (clear!)
@@ -147,7 +157,7 @@
                                                     {:b 1})}})
       (sys/start! ::test)
 
-      (is (= (-> sys/systems
+      (is (= (-> sys/*systems
                  deref
                  ::test
                  ::i/exception
@@ -155,7 +165,7 @@
              "Component with id :component-1 did not provide values as declared: {:a [\"missing required key\"]}"))
 
       (testing "(internal) systems remains valid"
-        (is (valid? i/Systems @sys/systems))))
+        (is (valid? i/Systems @sys/*systems))))
 
     (testing "when a component does not provide what it declared (malli spec), results in system with exception"
       (clear!)
@@ -165,7 +175,7 @@
                                                     {:a 1})}})
       (sys/start! ::test)
 
-      (is (= (-> sys/systems
+      (is (= (-> sys/*systems
                  deref
                  ::test
                  ::i/exception
@@ -173,7 +183,7 @@
              "Component with id :component-1 did not provide values as declared: {:a [\"invalid type\"]}"))
 
       (testing "(internal) systems remains valid"
-        (is (valid? i/Systems @sys/systems))))
+        (is (valid? i/Systems @sys/*systems))))
 
     (testing "when a component fails to start, does not start remaining components"
       (let [starts (atom [])
@@ -218,7 +228,7 @@
         (is (= [:component-1 :component-2] @starts))
 
         (testing "(internal) systems remains valid"
-          (is (valid? i/Systems @sys/systems)))
+          (is (valid? i/Systems @sys/*systems)))
 
         (testing "resulting system has all defined keys"
           (is (= 1 (sys/get ::test :a)))
@@ -239,11 +249,12 @@
             (is (= {:a 1 :b 2 :c 3} (sys/context ::test))))
 
           (testing "(internal) systems remains valid"
-            (is (valid? i/Systems @sys/systems)))))))
+            (is (valid? i/Systems @sys/*systems)))))))
 
   (testing "stop!"
     (let [stops (atom [])
-          stop-args (atom {})]
+          stop-args (atom {})
+          get-contexts (atom {})]
       (clear!)
       (sys/set! ::test #{{:sys.component/id       :component-1
                           :sys.component/expects  #{}
@@ -252,10 +263,12 @@
                                                     {:a 1})
                           :sys.component/stop    (fn [args]
                                                    (swap! stops conj :component-1)
-                                                   (swap! stop-args assoc :component-1 args))}
+                                                   (swap! stop-args assoc :component-1 args)
+                                                   (swap! get-contexts assoc :component-1 (sys/context ::test)))}
                          {:sys.component/id       :component-2
                           :sys.component/expects  #{:a}
                           :sys.component/provides #{:b}
+                          ;; testing not having a stop
                           :sys.component/start    (fn [{:keys [a]}]
                                                     {:b (+ a 1)})}
                          {:sys.component/id       :component-3
@@ -265,7 +278,9 @@
                                                     {:c (+ b 1)})
                           :sys.component/stop    (fn [args]
                                                    (swap! stops conj :component-3)
-                                                   (swap! stop-args assoc :component-3 args))}})
+                                                   (swap! stop-args assoc :component-3 args)
+                                                   (swap! get-contexts assoc :component-3 (sys/context ::test)))}})
+
       (sys/start! ::test)
       (sys/stop! ::test)
 
@@ -274,12 +289,17 @@
                @stops)))
 
       (testing "(internal) systems remains valid"
-        (is (valid? i/Systems @sys/systems)))
+        (is (valid? i/Systems @sys/*systems)))
 
       (testing "each component receives what it provided"
         (is (= {:component-1 {:a 1}
                 :component-3 {:c 3}}
                @stop-args)))
+
+      (testing "context is updated after each stop"
+        (is (= {:component-1 {:a 1}
+                :component-3 {:a 1 :b 2 :c 3}}
+               @get-contexts)))
 
       (testing "removes provided values from context"
         (is (= {} (sys/context ::test)))))
@@ -327,7 +347,7 @@
                  @stops)))
 
         (testing "(internal) systems remains valid"
-          (is (valid? i/Systems @sys/systems))))))
+          (is (valid? i/Systems @sys/*systems))))))
 
   (testing "nested systems"
     (clear!)
@@ -369,7 +389,7 @@
       (is (= {:a 1 :b 2} (sys/context ::parent))))
 
     (testing "(internal) systems remains valid after start"
-      (is (valid? i/Systems @sys/systems)))
+      (is (valid? i/Systems @sys/*systems)))
 
     (testing "set! on running parent stops child and restarts it"
       (sys/set! ::parent #{#:sys.component
@@ -396,7 +416,7 @@
         (is (= {:a 10 :b 11} (sys/context ::parent))))
 
       (testing "(internal) systems remains valid after set!"
-        (is (valid? i/Systems @sys/systems))))
+        (is (valid? i/Systems @sys/*systems))))
 
     (sys/stop! ::parent)
 
@@ -407,7 +427,7 @@
       (is (= {} (sys/context ::parent))))
 
     (testing "(internal) systems remains valid after stop"
-      (is (valid? i/Systems @sys/systems)))))
+      (is (valid? i/Systems @sys/*systems)))))
 
 (clojure.test/run-tests)
 
