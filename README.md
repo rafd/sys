@@ -1,5 +1,7 @@
 # sys
 
+<img src="docs/illustration.png" width="300" alt="Sisyphus" align="right">
+
 [![Clojars Project](https://img.shields.io/clojars/v/com.github.rafd/sys.svg)](https://clojars.org/com.github.rafd/sys)
 
 A boring dependency injection system for Clojure(Script) apps.
